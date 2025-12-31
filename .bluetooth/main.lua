@@ -1028,7 +1028,6 @@ function love.gamepadpressed(joystick, button)
             TurnOffBluetooth()
             return
         end
-    end
     else
         if key == "start" then
             TurnOnBluetooth()
