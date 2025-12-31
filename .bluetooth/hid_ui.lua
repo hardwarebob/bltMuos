@@ -75,17 +75,52 @@ function HIDUI.DrawHIDServerUI()
         return
     end
 
+    local isConnected = BluetoothHID.IsConnected()
+    local controlsLocked = BluetoothHID.AreControlsLocked()
+
     -- Title
     love.graphics.setColor(0.141, 0.141, 0.141)
     love.graphics.rectangle("fill", xPos, yPos, 623, 40, 4, 4)
 
     love.graphics.setColor(1, 1, 1)
     love.graphics.setFont(fontBold)
-    love.graphics.print("Bluetooth Gamepad Mode", xPos + 200, yPos + 8)
+
+    if isConnected then
+        love.graphics.print("Connected - Controls Active", xPos + 180, yPos + 8)
+    else
+        love.graphics.print("Bluetooth Gamepad Mode", xPos + 200, yPos + 8)
+    end
 
     yPos = yPos + 50
 
-    -- Discoverable status
+    -- Connection status (prominent when connected)
+    if isConnected then
+        love.graphics.setColor(0.2, 0.8, 0.2, 0.3)
+        love.graphics.rectangle("fill", xPos, yPos, 623, 100, 4, 4)
+
+        love.graphics.setColor(0.2, 0.8, 0.2)
+        love.graphics.setFont(fontBold)
+        love.graphics.print("CONNECTED", xPos + 250, yPos + 10)
+
+        love.graphics.setFont(fontSmall)
+        love.graphics.setColor(1, 1, 1)
+        local hostMAC = BluetoothHID.GetConnectedHost()
+        if hostMAC then
+            love.graphics.print("Host: " .. hostMAC, xPos + 200, yPos + 35)
+        end
+
+        love.graphics.setColor(0.9, 0.9, 0.2)
+        love.graphics.print("Controls locked - All inputs sent to host", xPos + 140, yPos + 55)
+
+        love.graphics.setColor(0.9, 0.5, 0.2)
+        love.graphics.print("To disconnect: Press Select + R2", xPos + 175, yPos + 75)
+
+        yPos = yPos + 110
+        love.graphics.setColor(1, 1, 1)
+        return  -- Don't show other controls when connected
+    end
+
+    -- Discoverable status (only show when not connected)
     love.graphics.setFont(fontSmall)
     local isDiscoverable = BluetoothHID.IsDiscoverable()
     local isServerActive = BluetoothHID.IsServerActive()
@@ -291,13 +326,39 @@ function HIDUI.HandleModeSelectionInput(button)
 end
 
 -- Handle HID-specific button presses
-function HIDUI.HandleHIDInput(button)
+function HIDUI.HandleHIDInput(button, joystick)
     local currentMode = BluetoothHID.GetMode()
 
     if currentMode ~= BluetoothHID.Mode.SERVER then
         return false
     end
 
+    -- Check if controls are locked (connected to host)
+    local controlsLocked = BluetoothHID.AreControlsLocked()
+
+    if controlsLocked then
+        -- When locked, ONLY allow the disconnect combination
+        -- Check for Volume Down (mapped to specific button) + R2
+        -- Note: Volume buttons might not be available via gamepad API
+        -- Using Select + R2 as alternative combination
+        if joystick then
+            local selectPressed = joystick:isGamepadDown("back")  -- Select/Back button
+            local r2Pressed = joystick:isGamepadDown("rightshoulder")  -- R2
+
+            if selectPressed and r2Pressed and button == "rightshoulder" then
+                -- Disconnect combination triggered
+                BluetoothHID.DisconnectHost()
+                BluetoothHID.SetControlsLocked(false)
+                HIDUI.SetStatusMessage("Disconnected from host - Controls unlocked")
+                return true
+            end
+        end
+
+        -- All other inputs are blocked when controls are locked
+        return true
+    end
+
+    -- Normal input handling when controls are NOT locked
     if button == "a" then
         -- Toggle discoverable
         local isDiscoverable = BluetoothHID.IsDiscoverable()
@@ -324,11 +385,23 @@ function HIDUI.HandleHIDInput(button)
     return false
 end
 
+-- Track time for connection status updates
+local connectionCheckTimer = 0
+local CONNECTION_CHECK_INTERVAL = 1.0  -- Check every 1 second
+
 -- Update controller state and send HID reports
 function HIDUI.Update(dt)
     local currentMode = BluetoothHID.GetMode()
 
     if currentMode == BluetoothHID.Mode.SERVER and BluetoothHID.IsServerActive() then
+        -- Update connection status periodically
+        connectionCheckTimer = connectionCheckTimer + dt
+        if connectionCheckTimer >= CONNECTION_CHECK_INTERVAL then
+            BluetoothHID.UpdateConnectionStatus()
+            connectionCheckTimer = 0
+        end
+
+        -- Send controller input
         local joysticks = love.joystick.getJoysticks()
         if joysticks[1] then
             BluetoothHID.UpdateControllerState(joysticks[1])

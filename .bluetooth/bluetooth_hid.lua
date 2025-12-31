@@ -15,6 +15,9 @@ BluetoothHID.Mode = {
 local currentMode = BluetoothHID.Mode.CLIENT
 local isDiscoverable = false
 local hidServerActive = false
+local isConnected = false
+local connectedHostMAC = nil
+local controlsLocked = false
 
 -- HID Report Descriptor for gamepad (USB HID specification)
 -- This descriptor defines a standard gamepad with:
@@ -53,6 +56,22 @@ end
 
 function BluetoothHID.IsServerActive()
     return hidServerActive
+end
+
+function BluetoothHID.IsConnected()
+    return isConnected
+end
+
+function BluetoothHID.GetConnectedHost()
+    return connectedHostMAC
+end
+
+function BluetoothHID.AreControlsLocked()
+    return controlsLocked
+end
+
+function BluetoothHID.SetControlsLocked(locked)
+    controlsLocked = locked
 end
 
 -- Initialize HID profile and D-Bus service
@@ -339,6 +358,51 @@ function BluetoothHID.GetConnectedHosts()
     end
 
     return hosts
+end
+
+-- Check and update connection status
+function BluetoothHID.UpdateConnectionStatus()
+    if not hidServerActive then
+        isConnected = false
+        connectedHostMAC = nil
+        return
+    end
+
+    if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") ~= "1" then
+        local hosts = BluetoothHID.GetConnectedHosts()
+
+        if #hosts > 0 then
+            -- We have a connection
+            if not isConnected then
+                -- New connection established
+                isConnected = true
+                connectedHostMAC = hosts[1].ip
+                controlsLocked = true  -- Lock controls when connected
+
+                -- Disable discoverable once connected
+                BluetoothHID.SetDiscoverable(false)
+            end
+        else
+            -- No connection
+            if isConnected then
+                -- Connection was lost
+                isConnected = false
+                connectedHostMAC = nil
+                controlsLocked = false
+            end
+        end
+    end
+end
+
+-- Manually disconnect from connected host
+function BluetoothHID.DisconnectHost()
+    if connectedHostMAC and os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") ~= "1" then
+        os.execute("bluetoothctl disconnect " .. connectedHostMAC)
+        socket.sleep(0.5)
+        isConnected = false
+        connectedHostMAC = nil
+        controlsLocked = false
+    end
 end
 
 return BluetoothHID

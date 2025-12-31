@@ -880,7 +880,8 @@ function love.gamepadpressed(joystick, button)
     -- Handle HID-specific input when in server mode (excluding Y, which we handled above)
     local currentMode = BluetoothHID.GetMode()
     if currentMode == BluetoothHID.Mode.SERVER and key ~= "y" then
-        if HIDUI.HandleHIDInput(key) then
+        local joysticks = love.joystick.getJoysticks()
+        if HIDUI.HandleHIDInput(key, joysticks[1]) then
             return
         end
     end
