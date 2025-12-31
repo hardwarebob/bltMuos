@@ -466,9 +466,9 @@ function AvailableDevicesUI()
     love.graphics.draw(ic_A, xPos + 5, yPos + height - 22)
     love.graphics.print("Connect", xPos + 33, yPos + height - 20)
 
-    love.graphics.draw(ic_Y, xPos + 100, yPos + height - 22)
+    love.graphics.draw(ic_L1, xPos + 100, yPos + height - 22)
     love.graphics.print("Scan", xPos + 100 + 30, yPos + height - 20)
-    
+
     love.graphics.setColor(1,1,1)
 end
 
@@ -847,16 +847,39 @@ function love.gamepadpressed(joystick, button)
  end
 
  function OnKeyPress(key)
-    -- Handle mode selection modal first
+    -- Handle mode selection modal first (highest priority)
     if HIDUI.IsModeSelectionShown() then
         if HIDUI.HandleModeSelectionInput(key) then
             return
         end
     end
 
-    -- Handle HID-specific input when in server mode
+    -- Handle Y button for mode switching (before other handlers)
+    if key == "y" then
+        local currentMode = BluetoothHID.GetMode()
+        if currentMode == BluetoothHID.Mode.SERVER then
+            -- In server mode, Y opens mode selection
+            HIDUI.ShowModeSelection()
+            return
+        elseif not isTimeoutShow and not isAudioShow and not isSwitchAudioShow and not isQuitConfirm and not isConnectMethodSelection then
+            -- In client mode, Y opens mode selection (unless other modals are open)
+            HIDUI.ShowModeSelection()
+            return
+        end
+    end
+
+    -- Handle L1 button for scanning (replaces the old Y scan function)
+    if key == "l1" and isBluetoothOn then
+        local currentMode = BluetoothHID.GetMode()
+        if currentMode == BluetoothHID.Mode.CLIENT and not isSwitchAudioShow and not isTimeoutShow and not isAudioShow then
+            ShowScanTimeoutUI()
+            return
+        end
+    end
+
+    -- Handle HID-specific input when in server mode (excluding Y, which we handled above)
     local currentMode = BluetoothHID.GetMode()
-    if currentMode == BluetoothHID.Mode.SERVER then
+    if currentMode == BluetoothHID.Mode.SERVER and key ~= "y" then
         if HIDUI.HandleHIDInput(key) then
             return
         end
@@ -1004,9 +1027,6 @@ function love.gamepadpressed(joystick, button)
         if key == "select" then
             TurnOffBluetooth()
             return
-        else if key == "y" then
-            ShowScanTimeoutUI()
-            return
         end
     end
     else
@@ -1023,7 +1043,8 @@ function love.gamepadpressed(joystick, button)
         return
     end
 
-    if key == "l1" then
+    if key == "r1" then
+        -- Changed from L1 to R1 for audio selection (L1 is now scan)
         if not isSwitchAudioShow and not isTimeoutShow then
             ShowAudioSelection()
             return

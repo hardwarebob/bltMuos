@@ -58,14 +58,27 @@ The controller input is sent at ~60Hz for responsive gameplay.
 1. Press **X button** to stop the HID server
 2. Press **Y button** to switch back to Client Mode
 
-## Button Reference (HID Server Mode)
+## Button Reference
 
+### Client Mode (Normal Bluetooth)
+| Button | Action |
+|--------|--------|
+| **A** | Connect to device |
+| **B** | Quit / Cancel |
+| **X** | Disconnect/Remove device |
+| **Y** | Switch to Server Mode |
+| **L1** | Scan for devices |
+| **R1** | Select audio output |
+| **Start** | Turn Bluetooth On |
+| **Select** | Turn Bluetooth Off |
+
+### Server Mode (HID Gamepad)
 | Button | Action |
 |--------|--------|
 | **A** | Make Discoverable / Hide |
 | **B** | Quit Application |
 | **X** | Stop HID Server |
-| **Y** | Switch Mode (Client ↔ Server) |
+| **Y** | Switch to Client Mode |
 | **Start** | Turn Bluetooth On |
 | **Select** | Turn Bluetooth Off |
 

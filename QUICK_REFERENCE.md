@@ -17,7 +17,8 @@
 | B | Quit / Cancel |
 | X | Disconnect/Remove device |
 | Y | **Switch to Server Mode** |
-| L1 | Scan for devices |
+| L1 | **Scan for devices** |
+| R1 | Select audio output |
 | Start | Bluetooth ON |
 | Select | Bluetooth OFF |
 
