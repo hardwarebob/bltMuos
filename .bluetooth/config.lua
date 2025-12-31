@@ -15,6 +15,11 @@ Config.AUDIO_SINKS = "data/sinks.txt"
 
 Config.BLUETOOTH_EXPECT_PATH = "bin/bluetooth_expect_script.exp"
 
+-- HID Server paths
+Config.HID_INIT_SCRIPT_PATH = "/tmp/hid_init.sh"
+Config.HID_SERVER_PATH = "/tmp/hid_server.py"
+Config.HID_HOSTS_PATH = "data/hid_hosts.txt"
+
 -- Grid
 Config.GRID_PAGE_ITEM = 7
 

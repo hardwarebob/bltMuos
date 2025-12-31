@@ -1,6 +1,8 @@
 local love = require("love")
 
 local Bluetooth = require("bluetooth")
+local BluetoothHID = require("bluetooth_hid")
+local HIDUI = require("hid_ui")
 local Config = require("config")
 local Audio = require("Audio")
 local StringHelper = require("Helper/StringHelper")
@@ -701,6 +703,12 @@ function love.load()
 
     ic_off = love.graphics.newImage("Assets/Icon/off.png")
     ic_on = love.graphics.newImage("Assets/Icon/on.png")
+
+    -- Initialize HID UI module
+    HIDUI.Init(
+        {A = ic_A, B = ic_B, X = ic_X, Y = ic_Y},
+        {big = fontBig, small = fontSmall, bold = fontBold}
+    )
 end
 
 function love.draw()
@@ -716,23 +724,42 @@ function love.draw()
 
     love.graphics.setFont(fontBoldSmall)
 
-    if isBluetoothOn then
-        AvailableDevicesUI()
-        ConnectedDevicesUI()
+    -- Draw mode toggle
+    HIDUI.DrawModeToggle()
+
+    -- Draw appropriate UI based on mode
+    local currentMode = BluetoothHID.GetMode()
+    if currentMode == BluetoothHID.Mode.CLIENT then
+        -- Normal client mode UI
+        if isBluetoothOn then
+            AvailableDevicesUI()
+            ConnectedDevicesUI()
+        else
+            love.graphics.draw(ic_bluetooth_big, 640/2 - 60, 480/2 - 100)
+            love.graphics.print("Press", 220, 253)
+            love.graphics.draw(ic_start, 220 + 40, 255)
+            love.graphics.print("to turn on Bluetooth", 260 + 40, 253)
+        end
     else
-        love.graphics.draw(ic_bluetooth_big, 640/2 - 60, 480/2 - 100)
-        love.graphics.print("Press", 220, 253)
-        love.graphics.draw(ic_start, 220 + 40, 255)
-        love.graphics.print("to turn on Bluetooth", 260 + 40, 253)
+        -- HID server mode UI
+        HIDUI.DrawHIDServerUI()
     end
 
     BottomButtonUI()
+
+    -- Draw HID-specific buttons if in server mode
+    if currentMode == BluetoothHID.Mode.SERVER then
+        HIDUI.DrawHIDButtons()
+    end
 
     ScanTimeoutSelectionUI()
     AudioSelectionUI()
     ConfirmAutoSwitchAudioUI()
     ShowQuitConfirmUI()
     ConnectMethodSelectionUI()
+
+    -- Draw mode selection modal (appears on top of everything)
+    HIDUI.DrawModeSelectionModal()
 
     love.graphics.pop()
 end
@@ -761,6 +788,9 @@ function love.update(dt)
             runDisConnectFunc = nil
         end
     end
+
+    -- Update HID controller state and send reports
+    HIDUI.Update(dt)
 end
 
 function love.keypressed(key)
@@ -817,10 +847,25 @@ function love.gamepadpressed(joystick, button)
  end
 
  function OnKeyPress(key)
+    -- Handle mode selection modal first
+    if HIDUI.IsModeSelectionShown() then
+        if HIDUI.HandleModeSelectionInput(key) then
+            return
+        end
+    end
+
+    -- Handle HID-specific input when in server mode
+    local currentMode = BluetoothHID.GetMode()
+    if currentMode == BluetoothHID.Mode.SERVER then
+        if HIDUI.HandleHIDInput(key) then
+            return
+        end
+    end
+
     if isQuitConfirm then
         if key == "a" then
             love.event.quit()
-           return 
+           return
         end
 
         if key == "b" then
